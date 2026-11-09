@@ -21,7 +21,7 @@ on:
 
 jobs:
   build-deb:
-    runs-on: macos-15
+    runs-on: macos-15-intel
 
     env:
       THEOS: ${{ github.workspace }}/theos-rootless-sdk17.5
@@ -67,9 +67,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: cargo-${{ runner.os }}-ios17.5-${{ hashFiles('Cargo.lock') }}
+          key: cargo-${{ runner.os }}-${{ runner.arch }}-ios17.5-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            cargo-${{ runner.os }}-ios17.5-
+            cargo-${{ runner.os }}-${{ runner.arch }}-ios17.5-
 
       - name: Build rootless package
         run: |
