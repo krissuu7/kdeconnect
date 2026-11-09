@@ -1,4 +1,4 @@
-TARGET := iphone:clang:17.5:15.0
+TARGET := iphone:clang:18.6:15.0
 INSTALL_TARGET_PROCESSES = kdeconnectd
 
 ARCHS = arm64

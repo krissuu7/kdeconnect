@@ -24,7 +24,7 @@ jobs:
     runs-on: macos-15-intel
 
     env:
-      THEOS: ${{ github.workspace }}/theos-rootless-sdk17.5
+      THEOS: ${{ github.workspace }}/theos-rootless-sdk18.6
       THEOS_PACKAGE_SCHEME: rootless
       RUSTUP_TOOLCHAIN: nightly
       CARGO_TERM_COLOR: always
@@ -34,13 +34,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Restore Theos cache
+      - name: Restore Theos and iOS SDK cache
+        id: theos-cache
         uses: actions/cache@v4
         with:
           path: ${{ env.THEOS }}
-          key: theos-${{ runner.os }}-rootless-sdk17.5-v1
+          key: theos-${{ runner.os }}-${{ runner.arch }}-rootless-sdk18.6-v1
+          restore-keys: |
+            theos-${{ runner.os }}-${{ runner.arch }}-rootless-sdk18.6-
 
-      - name: Setup Theos with Swift-compatible iOS SDK
+      - name: Setup Theos with Swift 6.1.2-compatible iOS SDK
         uses: Randomblock1/theos-action@v1
         with:
           theos-dir: ${{ env.THEOS }}
@@ -50,9 +53,13 @@ jobs:
 
       - name: Verify build toolchain
         run: |
+          set -euo pipefail
           swift --version
-          test -d "$THEOS/sdks/iPhoneOS17.5.sdk"
-          echo "Using Theos SDK: $THEOS/sdks/iPhoneOS17.5.sdk"
+          xcodebuild -version
+          test -d "$THEOS/sdks/iPhoneOS18.6.sdk"
+          grep -q "Apple Swift version 6.1.2" "$THEOS/sdks/iPhoneOS18.6.sdk/usr/lib/swift/XPC.swiftmodule/arm64-apple-ios.swiftinterface"
+          echo "Using Theos SDK: $THEOS/sdks/iPhoneOS18.6.sdk"
+          echo "SDK Swift interface matches runner Swift 6.1.2"
           echo "Deployment target: $IPHONEOS_DEPLOYMENT_TARGET"
 
       - name: Setup Rust nightly with iOS target
@@ -60,24 +67,42 @@ jobs:
         with:
           targets: aarch64-apple-ios
 
-      - name: Restore Cargo cache
-        uses: actions/cache@v4
+      - name: Restore incremental Rust and Theos build cache
+        id: build-cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: cargo-${{ runner.os }}-${{ runner.arch }}-ios17.5-${{ hashFiles('Cargo.lock') }}
+            ios/.theos/obj
+          key: build-${{ runner.os }}-${{ runner.arch }}-ios18.6-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            cargo-${{ runner.os }}-${{ runner.arch }}-ios17.5-
+            build-${{ runner.os }}-${{ runner.arch }}-ios18.6-${{ hashFiles('Cargo.lock') }}-
+            build-${{ runner.os }}-${{ runner.arch }}-ios18.6-
 
       - name: Build rootless package
+        id: build
         run: |
+          set -euo pipefail
           cd ios
           ./make.sh package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
 
+      - name: Save incremental build cache (also after a failed build)
+        if: always() && steps.build.outcome != 'cancelled'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+            ios/.theos/obj
+          key: build-${{ runner.os }}-${{ runner.arch }}-ios18.6-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}
+
       - name: Validate produced rootless package
+        if: success()
         run: |
+          set -euo pipefail
           cd ios
           deb_path=$(find . -maxdepth 4 -type f -name "*iphoneos-arm64*.deb" | head -n 1)
           if [[ -z "$deb_path" ]]; then
@@ -89,8 +114,10 @@ jobs:
           cp "$deb_path" "../dist/rootless-$(basename "$deb_path")"
 
       - name: Upload rootless .deb artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: kdeconnectjb-rootless-deb
           path: dist/*.deb
           if-no-files-found: error
+          retention-days: 90
