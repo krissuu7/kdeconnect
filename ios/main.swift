@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import Darwin
 
 private let configDir = "/var/mobile/kdeconnect"
 private let typePath = "\(configDir)/type"
@@ -101,7 +102,6 @@ private func runDaemon() throws {
         )
     }
 
-    let fileManager = FileManager.default
     try ensureDirectory(configDir)
     try ensureFile(typePath, defaultContents: "phone")
     try ensureFile(namePath, defaultContents: UIDevice.current.name)
@@ -110,7 +110,7 @@ private func runDaemon() throws {
     let deviceTypeString = try String(contentsOfFile: typePath, encoding: .utf8)
         .trimmingCharacters(in: .whitespacesAndNewlines)
 
-    let deviceType: K_CONNECT_FFI_DEVICE_TYPE
+    var deviceType = K_CONNECT_FFI_DEVICE_TYPE_PHONE
     switch deviceTypeString {
     case "phone":
         deviceType = K_CONNECT_FFI_DEVICE_TYPE_PHONE
@@ -146,7 +146,7 @@ private func runDaemon() throws {
     }
 }
 
-runDaemonWithErrorHandling: do {
+do {
     try runDaemon()
 } catch {
     daemonLog("FATAL startup error: \(error)")
