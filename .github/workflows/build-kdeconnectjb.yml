@@ -1,4 +1,4 @@
-name: Build kdeconnectjb packages
+name: Build kdeconnectjb rootless package
 
 on:
   workflow_dispatch:
@@ -22,22 +22,10 @@ on:
 jobs:
   build-deb:
     runs-on: macos-15
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - scheme: rootless
-            theos_src: https://github.com/theos/theos
-            artifact_name: kdeconnectjb-rootless-deb
-            cache_suffix: rootless
-          - scheme: roothide
-            theos_src: https://github.com/roothide/theos
-            artifact_name: kdeconnectjb-roothide-deb
-            cache_suffix: roothide
 
     env:
-      THEOS: ${{ github.workspace }}/theos-${{ matrix.scheme }}
-      THEOS_PACKAGE_SCHEME: ${{ matrix.scheme }}
+      THEOS: ${{ github.workspace }}/theos-rootless
+      THEOS_PACKAGE_SCHEME: rootless
       RUSTUP_TOOLCHAIN: nightly
       CARGO_TERM_COLOR: always
 
@@ -49,15 +37,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.THEOS }}
-          key: theos-${{ runner.os }}-${{ matrix.cache_suffix }}-v1
+          key: theos-${{ runner.os }}-rootless-v1
           restore-keys: |
-            theos-${{ runner.os }}-${{ matrix.cache_suffix }}-
+            theos-${{ runner.os }}-rootless-
 
       - name: Setup Theos
         uses: Randomblock1/theos-action@v1
         with:
           theos-dir: ${{ env.THEOS }}
-          theos-src: ${{ matrix.theos_src }}
+          theos-src: https://github.com/theos/theos
 
       - name: Setup Rust nightly with iOS target
         uses: dtolnay/rust-toolchain@nightly
@@ -75,36 +63,27 @@ jobs:
           restore-keys: |
             cargo-${{ runner.os }}-
 
-      - name: Build package
+      - name: Build rootless package
         run: |
           cd ios
           ./make.sh clean
-          ./make.sh package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=${{ matrix.scheme }}
+          ./make.sh package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
 
-      - name: Validate produced package
+      - name: Validate produced rootless package
         run: |
           cd ios
-          deb_path=$(find . -maxdepth 4 -type f -name "*.deb" | head -n 1)
+          deb_path=$(find . -maxdepth 4 -type f -name "*iphoneos-arm64*.deb" | head -n 1)
           if [[ -z "$deb_path" ]]; then
-            echo "No .deb package was produced"
+            echo "No rootless .deb package (iphoneos-arm64) was produced"
             exit 1
           fi
           echo "Produced package: $deb_path"
-          if [[ "${{ matrix.scheme }}" == "rootless" ]]; then
-            case "$deb_path" in
-              *iphoneos-arm64*.deb) ;;
-              *)
-                echo "Expected rootless architecture package (iphoneos-arm64)"
-                exit 1
-                ;;
-            esac
-          fi
           mkdir -p ../dist
-          cp "$deb_path" "../dist/${{ matrix.scheme }}-$(basename "$deb_path")"
+          cp "$deb_path" "../dist/rootless-$(basename "$deb_path")"
 
-      - name: Upload .deb artifact
+      - name: Upload rootless .deb artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
+          name: kdeconnectjb-rootless-deb
           path: dist/*.deb
           if-no-files-found: error
