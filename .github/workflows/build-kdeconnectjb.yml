@@ -24,10 +24,11 @@ jobs:
     runs-on: macos-15
 
     env:
-      THEOS: ${{ github.workspace }}/theos-rootless
+      THEOS: ${{ github.workspace }}/theos-rootless-sdk17.5
       THEOS_PACKAGE_SCHEME: rootless
       RUSTUP_TOOLCHAIN: nightly
       CARGO_TERM_COLOR: always
+      IPHONEOS_DEPLOYMENT_TARGET: "15.0"
 
     steps:
       - name: Checkout repository
@@ -37,15 +38,22 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.THEOS }}
-          key: theos-${{ runner.os }}-rootless-v1
-          restore-keys: |
-            theos-${{ runner.os }}-rootless-
+          key: theos-${{ runner.os }}-rootless-sdk17.5-v1
 
-      - name: Setup Theos
+      - name: Setup Theos with Swift-compatible iOS SDK
         uses: Randomblock1/theos-action@v1
         with:
           theos-dir: ${{ env.THEOS }}
           theos-src: https://github.com/theos/theos
+          theos-sdks: https://github.com/Tonwalter888/iOS-SDKs
+          theos-sdks-branch: master
+
+      - name: Verify build toolchain
+        run: |
+          swift --version
+          test -d "$THEOS/sdks/iPhoneOS17.5.sdk"
+          echo "Using Theos SDK: $THEOS/sdks/iPhoneOS17.5.sdk"
+          echo "Deployment target: $IPHONEOS_DEPLOYMENT_TARGET"
 
       - name: Setup Rust nightly with iOS target
         uses: dtolnay/rust-toolchain@nightly
@@ -59,14 +67,13 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          key: cargo-${{ runner.os }}-ios17.5-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            cargo-${{ runner.os }}-
+            cargo-${{ runner.os }}-ios17.5-
 
       - name: Build rootless package
         run: |
           cd ios
-          ./make.sh clean
           ./make.sh package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
 
       - name: Validate produced rootless package
