@@ -546,7 +546,14 @@ int objc_main(const char *deviceName, KConnectFfiDeviceType_t deviceType) {
 
     CoreTelephonyClientMux *telephonyClientMux = [CoreTelephonyClient sharedMultiplexer];
     telephonyClient = [[CoreTelephonyClient alloc] init];
-    [telephonyClient setMux:telephonyClientMux];
+    if ([telephonyClient respondsToSelector:@selector(setMux:)]) {
+      [telephonyClient setMux:telephonyClientMux];
+    } else {
+      // The setMux: selector is absent on some iOS versions (including iOS 18.5).
+      // Keep the KDE Connect daemon running; cellular signal reporting is optional.
+      NSLog(@"CoreTelephonyClient does not support setMux:; disabling cellular signal reporting.");
+      telephonyClient = nil;
+    }
 
     volumeClient = [[MPVolumeController alloc] init];
 
