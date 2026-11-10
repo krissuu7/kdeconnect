@@ -1,13 +1,11 @@
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
 <dict>
     <key>Label</key>
     <string>dev.r58playz.kdeconnectjb</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/bin/sh</string>
-        <string>-c</string>
-        <string>if [ -x /var/jb/usr/local/bin/kdeconnectd ]; then exec /var/jb/usr/local/bin/kdeconnectd; elif [ -x /usr/local/bin/kdeconnectd ]; then exec /usr/local/bin/kdeconnectd; elif [ -x /.jbroot/usr/local/bin/kdeconnectd ]; then exec /.jbroot/usr/local/bin/kdeconnectd; else echo 'kdeconnectd binary not found' >&amp;2; exit 127; fi</string>
+        <string>/var/jb/usr/local/bin/kdeconnectd</string>
     </array>
     <key>UserName</key>
     <string>mobile</string>
@@ -17,12 +15,5 @@
     <true/>
     <key>StandardErrorPath</key>
     <string>/var/mobile/kdeconnectd.log</string>
-    <key>JetsamProperties</key>
-    <dict>
-        <key>JetsamMemoryLimit</key>
-        <integer>20</integer>
-        <key>JetsamPriority</key>
-        <integer>10</integer>
-    </dict>
 </dict>
 </plist>
